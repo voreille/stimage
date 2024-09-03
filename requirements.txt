@@ -6,5 +6,16 @@ mkdocs
 pip
 python-dotenv
 tqdm
-typer
 -e .
+
+huggingface_hub
+jupyter
+click
+pandas
+matplotlib
+scanpy[leiden]
+seaborn
+timm
+dask
+tables
+mlflow

@@ -1,0 +1,31 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.231.1/containers/docker-existing-dockerfile
+{
+    "name": "Existing Dockerfile",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "appPort": [5000],
+    "forwardPorts": [5000],
+    "customizations": {
+        // Configure properties specific to VS Code.
+        "vscode": {
+            // Add the IDs of extensions you want installed when the container is created.
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter",
+                "eeyore.yapf"
+            ]
+        }
+    },
+    "runArgs": [
+        "--gpus",
+        "all",
+        "--runtime=nvidia",
+        "--ipc=host"
+    ],
+    "mounts": [
+        "source=/mnt/nas6/data/lung_tcga/data_tcga,target=/workspaces/histolung/data/raw/lung_tcga,type=bind,consistency=cached,readonly"
+    ],
+    "postCreateCommand": "pip install -r requirements.txt"
+}
