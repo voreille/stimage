@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import json
 
@@ -13,6 +14,7 @@ from stimage.gene_expression.utils import (compute_gene_name_overlap,
                                            plot_and_save_figures)
 
 project_dir = Path(__file__).resolve().parents[2]
+os.environ['MLFLOW_TRACKING_URI'] = f"file://{project_dir / 'mlruns'}"
 pipelines_choice = [p['name'] for p in pipelines]
 
 
@@ -40,15 +42,20 @@ pipelines_choice = [p['name'] for p in pipelines]
 @click.option(
     '--save_figures',
     type=click.Path(file_okay=False, dir_okay=True),
-    default=str((project_dir / "reports/gene_exp_preprocessing").resolve()),
+    # default=str((project_dir / "reports/gene_exp_preprocessing").resolve()),
+    default=None,
     help=
     'Directory to save the figures. If not specified, figures will be displayed.'
 )
 @click.option('--pipeline',
               type=click.Choice(pipelines_choice, case_sensitive=False),
-              default="pipeline_1",
+              default="pipeline_3_sctransform_harmony",
               required=True,
               help='Specify which pipeline to use for preprocessing.')
+@click.option('--obs_limit_per_file',
+              type=click.INT,
+              default=10000,
+              help='Specify the limit of rows it will take from the csv')
 def process_spatial_data(
     data_dir,
     species,
@@ -57,7 +64,9 @@ def process_spatial_data(
     meta_file,
     save_figures,
     pipeline,
+    obs_limit_per_file,
 ):
+
     # Load and filter metadata
     data = load_and_filter_metadata(meta_file, species, tissue)
 
@@ -68,21 +77,30 @@ def process_spatial_data(
         return
 
     # Read and combine all relevant CSV files
-    combined_df = read_and_combine_files(data, data_dir, gene_name_overlap)
+    combined_df = read_and_combine_files(
+        data,
+        data_dir,
+        gene_name_overlap,
+        row_limit=obs_limit_per_file,
+    )
     if combined_df is None:
         return
 
     # Create AnnData object
     pd_df = combined_df.to_pandas()
-    adata = sc.AnnData(X=pd_df.drop(columns=['image_id']),
-                       obs=pd_df[['image_id']],
-                       var=pd.DataFrame(index=pd_df.columns.drop('image_id')))
+    adata = sc.AnnData(
+        X=pd_df.drop(columns=['image_id', 'spots_id']),
+        obs=pd_df[['image_id', 'spots_id']],
+        var=pd.DataFrame(index=pd_df.drop(
+            columns=["image_id", "spots_id"]).columns),
+    )
 
     # Save raw counts before preprocessing
     # adata.raw = adata
 
     selected_pipeline = next(p for p in pipelines if p['name'] == pipeline)
-    with mlflow.start_run(run_name=selected_pipeline['name']):
+    with mlflow.start_run(
+            run_name=f"gene_exp_{selected_pipeline['name']}_debug"):
         # Log the pipeline name
         mlflow.set_tag("pipeline_name",
                        f"gene_exp_{selected_pipeline['name']}")
@@ -94,7 +112,7 @@ def process_spatial_data(
         if output_dir:
             output_dir = Path(output_dir)
             output_dir.mkdir(exist_ok=True)
-            output_file = output_dir / f"{selected_pipeline['name']}_{species}_{tissue}.h5ad"
+            output_file = output_dir / f"{selected_pipeline['name']}_{species}_{tissue}_debug.h5ad"
             adata.write(output_file)
         mlflow.log_artifact(output_file)
 

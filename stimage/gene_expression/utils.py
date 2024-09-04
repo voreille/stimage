@@ -1,6 +1,7 @@
 from pathlib import Path
 import tempfile
 
+import numpy as np
 import polars as pl
 import mlflow
 import pandas as pd
@@ -9,8 +10,37 @@ import click
 import scanpy as sc
 
 
-def read_csv_file(file_path, image_id, gene_name_overlap):
+def load_and_sample_csv(file_path, row_limit=10000):
+    # Step 1: Load the full CSV into memory
     df = pl.read_csv(file_path)
+
+    # Step 2: Check the number of rows
+    total_rows = df.shape[0]
+
+    # Step 3: If the number of rows exceeds the limit, sample randomly
+    if total_rows > row_limit:
+        # Use numpy to randomly sample row indices without replacement
+        sampled_indices = np.random.choice(total_rows,
+                                           row_limit,
+                                           replace=False)
+        sampled_df = df[sampled_indices]
+    else:
+        # If the number of rows is within the limit, keep the whole DataFrame
+        sampled_df = df
+
+    return sampled_df
+
+
+def read_csv_file(file_path, image_id, gene_name_overlap, row_limit=None):
+    if row_limit:
+        df = load_and_sample_csv(file_path, row_limit=row_limit)
+    else:
+        df = pl.read_csv(file_path)
+    # rename unnamed column as 'spot_id'
+    df = df.rename({df.columns[0]: "spots_id"})
+    if not isinstance(gene_name_overlap, list):
+        gene_name_overlap = list(gene_name_overlap)
+    gene_name_overlap.append("spots_id")
     df = df.select([col for col in df.columns if col in gene_name_overlap])
     df = df.with_columns(pl.lit(image_id).alias('image_id'))
     return df
@@ -41,7 +71,7 @@ def load_and_filter_metadata(meta_file, species, tissue):
     return data
 
 
-def read_and_combine_files(data, data_dir, gene_name_overlap):
+def read_and_combine_files(data, data_dir, gene_name_overlap, row_limit=None):
     dfs = []
     for index in tqdm(range(len(data)), desc="Reading slides"):
         slide = data['slide'].iloc[index]
@@ -51,7 +81,12 @@ def read_and_combine_files(data, data_dir, gene_name_overlap):
         file_path = Path(f'{data_dir}/{tech}/gene_exp/{slide}_count.csv')
 
         if file_path.exists():
-            df = read_csv_file(file_path, slide, gene_name_overlap)
+            df = read_csv_file(
+                file_path,
+                slide,
+                gene_name_overlap,
+                row_limit=row_limit,
+            )
             dfs.append(df)
         else:
             click.echo(

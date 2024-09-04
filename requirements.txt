@@ -19,3 +19,7 @@ timm
 dask
 tables
 mlflow
+polars[all]
+harmonypy
+scvelo
+scanorama

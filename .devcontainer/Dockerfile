@@ -7,7 +7,7 @@ FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel
 # FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y git sudo ninja-build libglib2.0-0 libsm6 libxrender-dev libxext6 libgl1-mesa-glx wget \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y git sudo ninja-build libglib2.0-0 libsm6 libxrender-dev libxext6 libgl1-mesa-glx wget git-lfs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* 
 
