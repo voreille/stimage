@@ -4,17 +4,29 @@ import scanorama
 import harmonypy as hm
 import pandas as pd
 
+# Global registry for steps
+STEP_REGISTRY = {}
 
+
+def register_step(func):
+    """Decorator to register a preprocessing function in the registry."""
+    STEP_REGISTRY[func.__name__] = func
+    return func
+
+
+@register_step
 def filter_cells(adata, min_genes):
     sc.pp.filter_cells(adata, min_genes=min_genes)
     return adata
 
 
+@register_step
 def filter_genes(adata, min_cells):
     sc.pp.filter_genes(adata, min_cells=min_cells)
     return adata
 
 
+@register_step
 def normalize_total(adata, target_sum):
     sc.pp.normalize_total(adata, target_sum=target_sum)
     adata.uns['normalize_total'] = {
@@ -23,11 +35,13 @@ def normalize_total(adata, target_sum):
     return adata
 
 
+@register_step
 def log1p(adata):
     sc.pp.log1p(adata)
     return adata
 
 
+@register_step
 def highly_variable_genes(adata, n_top_genes, batch_key):
     sc.pp.highly_variable_genes(adata,
                                 n_top_genes=n_top_genes,
@@ -35,23 +49,27 @@ def highly_variable_genes(adata, n_top_genes, batch_key):
     return adata
 
 
+@register_step
 def scale(adata, max_value):
     sc.pp.scale(adata, max_value=max_value)
     adata.uns['scale'] = {'max_value': max_value}  # Store for reversal
     return adata
 
 
+@register_step
 def combat(adata, key):
     sc.pp.combat(adata, key=key)
     adata.uns['combat'] = {'key': key}  # Store for reversal
     return adata
 
 
+@register_step
 def pca(adata, n_comps, svd_solver):
     sc.tl.pca(adata, n_comps=n_comps, svd_solver=svd_solver)
     return adata
 
 
+@register_step
 def sctransform(adata):
     """
     SCTransform for normalization.
@@ -60,6 +78,7 @@ def sctransform(adata):
     return adata
 
 
+@register_step
 def harmony_batch_correction(adata, batch_key):
     """
     Apply Harmony batch correction on PCA results.
@@ -83,6 +102,7 @@ def harmony_batch_correction(adata, batch_key):
     return adata
 
 
+@register_step
 def scanorama_integration(adata_list, batch_key):
     """
     Scanorama for batch correction and integration.
@@ -103,6 +123,7 @@ def scanorama_integration(adata_list, batch_key):
     return adata
 
 
+@register_step
 def umap(adata):
     """
     UMAP for dimensionality reduction.
